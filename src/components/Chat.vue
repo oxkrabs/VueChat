@@ -1,6 +1,7 @@
 <template>
   <div>
     Chat
+    <div class="room-header">{{room}}</div>
     <div>
       <form @submit.prevent="createRoom">
         <span style="margin-right:20px">{{user}}</span>
@@ -26,7 +27,12 @@
       </div>
       <div class="chat-container">
         <div class="chat-box">
-          <div v-for="(item, index) in messages" v-bind:key="index">
+          <div
+            class="chat-message-b"
+            v-for="(item, index) in messages" 
+            v-bind:key="index"
+            v-bind:class="{ mine: item.user === user }"
+          >
             <span class="chat-box__user">
               {{ item.user }}
             </span>
@@ -47,6 +53,7 @@ export default {
     return {
       message: "",
       messages: [],
+      room: '',
       userToSend: '',
       user: `user${Math.round(Math.random() * 100)}`,
       users: {},
@@ -65,11 +72,14 @@ export default {
     sendDirectMessage: function(e) {
       e.preventDefault();
       const vm = this;
-      vm.socket.emit("send_message_to", {
-        user1: vm.user,
-        user2: vm.userToSend,
-        message: vm.message
-      });
+      if (vm.room === '') {
+        console.error("No room found.");
+      } else {
+        vm.socket.emit("send_message_to", {
+          room: vm.room,
+          message: vm.message
+        });
+      }
     },
     sendMessage: function(e) {
       e.preventDefault();
@@ -96,13 +106,41 @@ export default {
     });
 
     this.socket.on("ROOM_INIT", function(data) {
-      console.log(data);
+      vm.room = data;
+      console.log("Joined ", vm.room);
+    });
+
+    this.socket.on("ROOM_INIT_DATA", function(data) {
+      console.log("data: ", data);
+    });
+
+    this.socket.on("NEW_ROOM_MESSAGE", function(data) {
+      vm.messages = [...vm.messages, data];
     });
   }
 };
 </script>
 
 <style scoped>
+.mine {
+  background: red !important;
+  margin-left: 10%;
+}
+.chat-message-b {
+  background: blue;
+  width: 80%;
+  border-radius: 10px;
+  position: relative;
+  padding: 20px;
+  color: white;
+  margin-bottom: 5px;
+}
+.room-header {
+  text-align: center;
+  background: red;
+  padding: 20px;
+  color: white;
+}
 .layout-container {
   display: flex;
   align-items: flex-start;
@@ -125,6 +163,13 @@ export default {
 }
 .chat-box__user {
   color: red;
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: white;
+  border: 1px solid black;
+  border-radius: 10px;
+  padding: 5px;
 }
 .chat-box__message {
   margin: 0;
